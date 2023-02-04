@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "postgres.fullname" . }}  # Sets Deployment name
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "postgres.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "postgres.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image:  "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}" # Sets Image
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 5432  # Exposes container port
+          env:
+            - name: POSTGRES_PASSWORD
+              value: "linkedmatrix"
+            - name: POSTGRES_USER
+              value: "lm"
+            - name: POSTGRES_DB
+              value: "linkedmatrix"
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgredb
+      volumes:
+        - name: postgredb
+          persistentVolumeClaim:
+            claimName: {{ include "postgres.fullname" . }}-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres.fullname" . }}-service # Sets service name
+  labels:
+    app: {{ include "postgres.fullname" . }}  # Labels and Selectors
+spec:
+  ports:
+    - port: 5432 # Sets port to run the postgres application
+  selector:
+    app: {{ include "postgres.fullname" . }}
+# ---
+# kind: PersistentVolume
+# apiVersion: v1
+# metadata:
+#   name: {{ include "postgres.fullname" . }}-pv  # Sets PV's name
+#   labels:
+#     app: {{ include "postgres.fullname" . }}
+# spec:
+#   storageClassName: ix-storage-class-{{ include "postgres.fullname" . }}
+#   capacity:
+#     storage: 5Gi # Sets PV Volume
+#   accessModes:
+#     - ReadWriteMany
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "postgres.fullname" . }}-pv-claim  # Sets name of PVC
+  labels:
+    app: {{ include "postgres.fullname" . }}
+spec:
+  storageClassName: ix-storage-class-{{ include "postgres.fullname" . }}
+  accessModes:
+    - ReadWriteMany  # Sets read and write access
+  resources:
+    requests:
+      storage: 5Gi
